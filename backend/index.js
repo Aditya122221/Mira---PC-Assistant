@@ -1,6 +1,8 @@
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
+import { exec } from "child_process";
+import { SOFTWARE_MAP, SOFTWARE_ALIASES } from "./SoftwareMap.js";
 
 const app = express();
 app.use(cors());
@@ -105,6 +107,42 @@ app.patch("/reminders/:id", async (req, res) => {
     } catch (err) {
         res.status(400).json({ error: "Update failed", details: err.message });
     }
+});
+
+function findSoftwareExe(userInput) {
+    const input = userInput.toLowerCase();
+
+    for (const [key, aliases] of Object.entries(SOFTWARE_ALIASES)) {
+        if (aliases.some(alias => input.includes(alias))) {
+            return SOFTWARE_MAP[key];
+        }
+    }
+    return null;
+}
+
+app.post("/open-software", (req, res) => {
+    const { softwareName } = req.body;
+    if (!softwareName) {
+        return res.status(400).json({ success: false, message: "Software name is required." });
+    }
+
+    const exeName = findSoftwareExe(softwareName);
+    if (!exeName) {
+        return res.json({ success: false, message: `I don't know how to open ${softwareName}.` });
+    }
+
+    const command = `start "" "${exeName}"`;
+
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`exec error: ${error}`);
+            return res.json({ success: false, message: `Could not open ${softwareName}.` });
+        }
+        if (stderr && stderr.toLowerCase().includes("cannot find")) {
+            return res.json({ success: false, message: `Could not find ${softwareName}.` });
+        }
+        res.json({ success: true, message: `Opened ${softwareName}.` });
+    });
 });
 
 // ✅ Start

@@ -306,7 +306,7 @@ You are a voice assistant intent parser.
 Return ONLY valid JSON with this schema:
 {
   "wake": true | false,
-  "intent": "greet" | "introduce" | "open" | "play" | "search" | "chat" | "mood_boost" | "unknown",
+  "intent": "greet" | "introduce" | "open" | "play" | "search" | "chat" | "mood_boost" | "open_software" | "unknown",
   "target": string | null,
   "query": string | null
 }
@@ -320,9 +320,10 @@ Rules:
    - "play" → play song/video/playlist
    - "search" → search/find X
    - "mood_boost" → "make me happy", "cheer me up", "i'm sad help", "i'm angry help me calm down", "help me relax", "play something for my mood"
+   - "open_software" → open software X
    - "chat"   → small talk, feelings, ask/answer anything, stories, advice
    - "unknown" → otherwise
-- target: app/website/channel name if specified, or mood (happy, sad, angry, stressed, chill/relax) if mood_boost
+- target: app/website/channel name if specified, or mood (happy, sad, angry, stressed, chill/relax) if mood_boost, or software name if open_software
 - query: the main song/video/topic/mood to play or search
 Output MUST be JSON only.
 `;
@@ -609,6 +610,54 @@ Mira:
 				const msg = `Sure Sir, I’ll try to help you feel ${mood}. Let’s play something for you.`;
 				pushAssistant(msg);
 				speak(msg, onDone);
+				return;
+			}
+
+			if (intent === "open_software") {
+				const softwareName = normTarget || q;
+				setStatus(`Executing: open_software → ${softwareName}`);
+				const onDone = async () => {
+					try {
+						const res = await fetch(`${API_BASE}/open-software`, {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ softwareName }),
+						});
+						const data = await res.json();
+
+						if (data.success) {
+							pushAssistant(`Opened ${softwareName}.`);
+							speak(`Opened ${softwareName}.`, finishTask);
+						} else {
+							pushAssistant(`Could not open ${softwareName}. Searching Google instead.`);
+							speak(`Could not open ${softwareName}. Searching Google instead.`, async () => {
+								const link = await googleSearchTopLink(softwareName);
+								if (link) window.open(link, "_blank");
+								else
+									window.open(
+										`https://www.google.com/search?q=${encodeURIComponent(softwareName)}`,
+										"_blank"
+									);
+								finishTask();
+							});
+						}
+					} catch (error) {
+						console.error("Error opening software:", error);
+						pushAssistant(`There was an error trying to open ${softwareName}. Searching Google instead.`);
+						speak(`There was an error trying to open ${softwareName}. Searching Google instead.`, async () => {
+							const link = await googleSearchTopLink(softwareName);
+							if (link) window.open(link, "_blank");
+							else
+								window.open(
+									`https://www.google.com/search?q=${encodeURIComponent(softwareName)}`,
+									"_blank"
+								);
+							finishTask();
+						});
+					}
+				};
+				pushAssistant(`Attempting to open ${softwareName}...`);
+				speak(`Attempting to open ${softwareName}...`, onDone);
 				return;
 			}
 
