@@ -174,44 +174,62 @@ const App = () => {
 	const introducedRef = useRef(false);
 
 	// 🔊 Speak
-	const speak = (text, callback) => {
-		const utterance = new SpeechSynthesisUtterance(text);
+	const speak = async (text, callback) => {
+    await playText(text);
 
-		// mark as speaking → pause recognition
-		isSpeakingRef.current = true;
-		stopRecognition();
+    if (typeof callback === "function") {
+        await callback();
+    }
 
-		const loadVoices = () => {
-			const voices = speechSynthesis.getVoices();
-			let cuteVoice = voices.find(v =>
-				v.name.toLowerCase().includes("female") ||
-				v.name.toLowerCase().includes("zira") ||
-				v.name.toLowerCase().includes("samantha") ||
-				v.name.toLowerCase().includes("google uk english female")
-			);
-			if (!cuteVoice && voices.length > 0) cuteVoice = voices[0];
-			if (cuteVoice) utterance.voice = cuteVoice;
+    // Only restart listening if not speaking another message
+    if (!isSpeakingRef.current) {
+        startRecognition();
+    }
+};
 
-			utterance.pitch = 1.6;
-			utterance.rate = 1.05;
-			utterance.volume = 1.0;
 
-			utterance.onend = () => {
-				isSpeakingRef.current = false;
-				if (callback) callback();
-				// restart listening after she finishes
-				restartRecognition();
-			};
+	// client/src/playTTS.js
+	async function playText(text) {
+		isSpeakingRef.current = true; // block recognition
 
-			speechSynthesis.speak(utterance);
-		};
+		const resp = await fetch(`${API_BASE}/speak`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ text }),
+		});
 
-		if (speechSynthesis.getVoices().length === 0) {
-			speechSynthesis.onvoiceschanged = loadVoices;
-		} else {
-			loadVoices();
+		if (!resp.ok) {
+			const err = await resp.json().catch(() => ({ error: "unknown" }));
+			isSpeakingRef.current = false;
+			throw new Error("TTS failed: " + JSON.stringify(err));
 		}
-	};
+
+		const arrayBuffer = await resp.arrayBuffer();
+		const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
+		const url = URL.createObjectURL(blob);
+		const a = new Audio(url);
+
+		await new Promise((resolve, reject) => {
+			a.onended = () => {
+				isSpeakingRef.current = false;
+
+				// ✅ If Mira is not busy with another task → restart listening
+				if (!isBusyRef.current) {
+					restartRecognition();
+				}
+
+				resolve();
+			};
+			a.onerror = (err) => {
+				isSpeakingRef.current = false;
+				if (!isBusyRef.current) restartRecognition();
+				reject(err);
+			};
+			a.play();
+		});
+
+		setTimeout(() => URL.revokeObjectURL(url), 30000);
+	}
 
 
 	// Push chat
@@ -243,7 +261,7 @@ const App = () => {
 		const greetAndRemind = async () => {
 			speechReadyRef.current = true;
 			setIsActive(true);
-			const greeting = "Hello Sir";
+			const greeting = "Hello";
 			await pushAssistant(greeting);
 			speak(greeting, async () => {
 				const factsList = await fetchFacts();
@@ -802,11 +820,6 @@ Mira:
 	const finishTask = () => {
 		isBusyRef.current = false;
 		setStatus("Done. Listening…");
-
-		// don’t restart here if Mira is still speaking
-		if (!isSpeakingRef.current) {
-			restartRecognition();
-		}
 	};
 
 	// ─────────────────────────────

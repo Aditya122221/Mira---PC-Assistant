@@ -2,7 +2,9 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import { exec } from "child_process";
+import fetch from "node-fetch";
 import { SOFTWARE_MAP, SOFTWARE_ALIASES } from "./SoftwareMap.js";
+import axios from 'axios'
 
 const app = express();
 app.use(cors());
@@ -144,6 +146,58 @@ app.post("/open-software", (req, res) => {
         res.json({ success: true, message: `Opened ${softwareName}.` });
     });
 });
+
+app.post('/speak', async (req, res) => {
+    try {
+        const text = (req.body.text || '').slice(0, 500);
+        console.log("Error 1", text)
+        const voiceId = '32b3f3c5-7171-46aa-abe7-b598964aa793';
+        if (!text) return res.status(400).json({ error: 'empty text' });
+
+        const payload = {
+            model_id: 'sonic-2',               // recommended model
+            transcript: text,
+            voice: { mode: 'id', id: voiceId },
+            output_format: { container: 'mp3', bit_rate: 128000, sample_rate: 44100 },
+            language: 'en'
+        };
+
+        const cartesiaRes = await axios.post(
+            'https://api.cartesia.ai/tts/bytes',
+            payload,
+            {
+                responseType: 'arraybuffer',
+                headers: {
+                    'Authorization': `Bearer ${process.env.CARTESIA_API_KEY}`,
+                    'Cartesia-Version': '2025-04-16',
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        // forward audio bytes to client
+        res.set('Content-Type', 'audio/mpeg');
+        res.send(Buffer.from(cartesiaRes.data));
+    } catch (err) {
+        console.error('Cartesia error:', err.response?.data || err.message);
+        res.status(500).json({ error: 'tts_failed', details: err.response?.data || err.message });
+    }
+});
+
+app.get('/getvoice', async (req, res) => {
+    const voices = await axios.get('https://api.cartesia.ai/voices?limit=100', {
+        headers: {
+            'Authorization': `Bearer ${process.env.CARTESIA_API_KEY}`,
+            'Cartesia-Version': '2025-04-16'
+        }
+    });
+
+    const animeLike = voices.data.data.filter(v =>
+        /(anime|cartoon|character|bright|playful|cute|youthful)/i.test(v.name + " " + v.description)
+    );
+
+    return res.json({ animeLike })
+})
 
 // ✅ Start
 app.listen(5000, () => console.log("✅ Mira backend running on http://localhost:5000"));
