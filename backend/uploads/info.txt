@@ -1,0 +1,1 @@
+This is the folder where sound recognition and trascription will take place.
