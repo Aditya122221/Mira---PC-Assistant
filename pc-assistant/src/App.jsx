@@ -312,62 +312,46 @@ const App = () => {
 			setStatus("Parsing your command…");
 
 			const prompt = `
-First act like a grammar checker and correct all the typo and wrong words which is recieved by you. Typo error like leethood, yutu, vcode, etc. will be very common so correct it at your best knowledge.
-Then act like command parser and always return JSON ONLY in this exact format:
+You are a command parser for the AI assistant Mira.
 
-{
-  "wake": true | false,
-  "intent": "string",
-  "target": "string | null",
-  "query": "string | null"
-}
+1. First, correct all typos in the transcript.For example, "yutu" → "YouTube", "vcode" → "VSCode", etc.
+2. Then parse the corrected transcript into JSON with exactly these fields:
+			{
+				"wake": true | false,
+				"intent": "string",
+				"target": "string|null",
+				"query": "string|null",
+				"corrected_transcript": "string"
+			}
 
-Rules:
-1. "wake" must be true if the transcript contains *any* mention of Mira,
-   including variations like "mira", "meera", "mirra", "myra", "mirah", 
-   or affectionate terms like "sweetheart", "baby", "babe".
-2. If "wake" is false → leave "intent", "target", and "query" as null.
-3. "intent" should be a short verb like "open", "search", "play", "close".
-4. "target" is the app, website, or entity (e.g., "YouTube", "Chrome", "Spotify").
-5. "query" is the remainder of the request (e.g., the search terms or details).
-6. Do NOT explain. Return JSON ONLY.
+			Rules:
+			- "wake" must be true if the transcript mentions Mira or variants(even with minor typos) like "mira", "meera", "mirra", "myra", "mirah", "mierra" or affectionate terms like "baby", "babe", "sweetheart".
+- If wake is false, set other fields to null.
+- "intent" is a short verb like "open", "search", "play", "chat", etc.
+- "target" is the app, site, or entity.
+- "query" is the rest of the user request.
+- Do not explain.JSON only.
 
-Examples:
+				Examples:
+			Transcript: "hey mira open yutu"
+			{
+				"wake": true,
+				"intent": "open",
+				"target": "youtube",
+				"query": null,
+				"corrected_transcript": "hey mira open YouTube"
+			}
 
-Transcript: "hey mira open youtube"
-{
-  "wake": true,
-  "intent": "open",
-  "target": "youtube",
-  "query": null
-}
+			Transcript: "what is the weather today"
+			{
+				"wake": false,
+				"intent": null,
+				"target": null,
+				"query": null,
+				"corrected_transcript": "what is the weather today"
+			}`;
 
-Transcript: "mira search for cute cat videos on youtube"
-{
-  "wake": true,
-  "intent": "search",
-  "target": "youtube",
-  "query": "cute cat videos"
-}
-
-Transcript: "what is the weather today"
-{
-  "wake": false,
-  "intent": null,
-  "target": null,
-  "query": null
-}
-
-Transcript: "meera play some romantic songs on spotify"
-{
-  "wake": true,
-  "intent": "play",
-  "target": "spotify",
-  "query": "romantic songs"
-}
-`;
-
-			const res = await model.generateContent(`${prompt}\nUser: "${text}"`);
+			const res = await model.generateContent(`${prompt} \nUser: "${text}"`);
 			const raw = res.response.text().trim();
 
 			const i = raw.indexOf("{");
