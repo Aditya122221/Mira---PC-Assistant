@@ -314,6 +314,8 @@ You are a command parser for the AI assistant Mira.
 			- "wake" must be true if the transcript mentions Mira or variants(even with minor typos) like "mira", "meera", "mirra", "myra", "mirah", "mierra" or affectionate terms like "baby", "babe", "sweetheart".
 - If wake is false, set other fields to null.
 - "intent" is a short verb like "open", "search", "play", "chat", etc.
+- If the user is asking to open desktop applications like VSCode, Notepad, Chrome (the program, not the website), set "intent": "open_software".
+- If it's a website (YouTube, Google, Gmail, etc.), set "intent": "open".
 - "target" is the app, site, or entity.
 - "query" is the rest of the user request.
 - Do not explain.JSON only.
@@ -745,6 +747,7 @@ Mira:
 				console.log(data.text)
 				await beginTask("Data Parsing…");
 				const parsed = await parseWithGemini(data.text);
+				console.log("parsed data", parsed)
 
 				if (parsed.wake) {
 					// Only save if Mira actually woke up
@@ -753,6 +756,7 @@ Mira:
 				}
 			} else {
 				speak(data.message, null)
+				finishTask()
 			}
 		} catch (err) {
 			console.error("STT error:", err);
