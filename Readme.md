@@ -8,35 +8,28 @@
 
 ## 📁 Directory Structure
 
-📦backend
- ┣ 📂uploads
- ┃ ┗ 📜info.txt
- ┣ 📜.env
- ┣ 📜index.js
- ┣ 📜package-lock.json
- ┣ 📜package.json
- ┗ 📜SoftwareMap.js
-
- 📦pc-assistant
- ┣ 📂public
- ┃ ┗ 📜vite.svg
- ┣ 📂src
- ┃ ┣ 📂assets
- ┃ ┃ ┣ 📜ai-assistant.png
- ┃ ┃ ┣ 📜Duck.glb
- ┃ ┃ ┗ 📜react.svg
- ┃ ┣ 📜App.jsx
- ┃ ┣ 📜index.css
- ┃ ┗ 📜main.jsx
- ┣ 📜.env
- ┣ 📜.gitignore
- ┣ 📜electron.js
- ┣ 📜eslint.config.js
- ┣ 📜index.html
- ┣ 📜package-lock.json
- ┣ 📜package.json
- ┣ 📜README.md
- ┗ 📜vite.config.js
+├── README.md
+├── Backend/
+│   ├── .env
+│   ├── index.js
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── SoftwareMap.js
+├── Frontend/
+│   ├── .env
+│   ├── .gitignore
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── vercel.json
+│   ├── vite.config.js
+│   ├── public/
+│   │   └── favicon.ico
+│   └── src/
+│       ├── index.css
+│       ├── App.jsx
+│       ├── main.jsx
 
 
 ## 🛠️ Installation Steps:
@@ -44,7 +37,7 @@
 <p>1. Clone Repositories</p>
 
 ```
-git clone https://github.com/Aditya122221/TubeAcademy.git
+git clone https://github.com/Aditya122221/Mira---PC-Assistant.git
 ```
 
 <p>2. Frontend Installation</p>
