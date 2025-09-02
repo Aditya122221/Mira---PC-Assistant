@@ -8,6 +8,7 @@
 
 ## 📁 Directory Structure
 
+.
 ├── README.md
 ├── Backend/
 │   ├── .env
