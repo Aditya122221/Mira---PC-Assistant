@@ -724,7 +724,7 @@ Mira:
 		formData.append("audio", audioBlob, "speech.webm");
 
 		try {
-			const res = await fetch("http://localhost:5000/stt", {
+			const res = await fetch(`${API_BASE}/stt`, {
 				method: "POST",
 				body: formData,
 			});

@@ -44,6 +44,10 @@ const FactSchema = new mongoose.Schema({
 const Chat = mongoose.model("Chat", ChatSchema);
 const Fact = mongoose.model("Fact", FactSchema);
 
+app.get("/", (req, res) => {
+    res.send("Server running")
+})
+
 // 📡 Routes
 app.get("/chat", async (req, res) => {
     const chats = await Chat.find().sort({ ts: 1 }).limit(20);
