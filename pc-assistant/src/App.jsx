@@ -744,10 +744,8 @@ Mira:
 			const data = await res.json();
 
 			if (data.status) {
-				console.log(data.text)
 				await beginTask("Data Parsing…");
 				const parsed = await parseWithGemini(data.text);
-				console.log("parsed data", parsed)
 
 				if (parsed.wake) {
 					// Only save if Mira actually woke up

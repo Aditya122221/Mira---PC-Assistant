@@ -237,8 +237,6 @@ app.post("/stt", upload.single("audio"), async (req, res) => {
         const baseName = path.basename(wavPath, ".wav");  // gets just filename without extension
         const transcriptPath = path.join("uploads", `${path.basename(baseName)}.txt`);
 
-        console.log(transcriptPath)
-
         // ✅ Ensure file exists before reading
         if (!fs.existsSync(transcriptPath)) {
             fs.unlinkSync(wavPath);
