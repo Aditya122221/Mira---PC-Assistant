@@ -235,25 +235,23 @@ app.post("/stt", upload.single("audio"), async (req, res) => {
 
         // ✅ Whisper saves inside "uploads/"
         const baseName = path.basename(wavPath, ".wav");  // gets just filename without extension
-        const transcriptPath = path.join("uploads", `${baseName}.txt`);
-
-        console.log("Transcript file path:", transcriptPath);
+        const transcriptPath = path.join("uploads", `${path.basename(baseName)}.txt`);
 
         // ✅ Ensure file exists before reading
         if (!fs.existsSync(transcriptPath)) {
             fs.unlinkSync(wavPath);
             fs.unlinkSync(renamedPath);
-            throw new Error("Transcript file not created by Whisper");
+            return res.status(200).json({status: false, message: "Sorry Sir, I didn't listen anything"})
         }
 
         const transcript = fs.readFileSync(transcriptPath, "utf-8");
 
-        // Cleanup unnecessary files
-        fs.unlinkSync(renamedPath);
+        //Cleanup unnecessary files
+       fs.unlinkSync(renamedPath);
         fs.unlinkSync(wavPath);
         fs.unlinkSync(transcriptPath);
 
-        return res.status(200).json({ text: transcript });
+        return res.status(200).json({ status: true, text: transcript });
     } catch (err) {
         console.error("❌ Whisper error:", err);
         res.status(500).json({ error: "Transcription failed", details: err.message });

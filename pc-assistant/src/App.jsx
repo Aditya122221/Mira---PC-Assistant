@@ -159,20 +159,14 @@ const App = () => {
 	const [voices, setVoices] = useState([]);
 	const [status, setStatus] = useState("Click 'Activate Mira', then speak");
 	const [isActive, setIsActive] = useState(false);
-	const [liveTranscript, setLiveTranscript] = useState("");
 	const [chat, setChat] = useState([]);
 	const [facts, setFacts] = useState([]);
-	const [transcript, setTranscript] = useState(""); // User speech -> text
-	const [reply, setReply] = useState("");           // Mira’s reply
 	const [recording, setRecording] = useState(false);
 
 	// Refs
-	const recognitionRef = useRef(null);
 	const speechReadyRef = useRef(false);
 	const isSpeakingRef = useRef(false);
 	const isBusyRef = useRef(false);
-	const startedRef = useRef(false);
-	const lastTranscriptRef = useRef("");
 	const introducedRef = useRef(false);
 	const mediaRecorderRef = useRef(null);
 	const audioChunksRef = useRef([]);
@@ -299,14 +293,6 @@ const App = () => {
 		greetAndRemind()
 	};
 
-	// 🧠 All your original functions stay:
-	// parseWithGemini, executeCommand, handleConversation,
-	// startRecognition, stopRecognition, restartRecognition
-	// ➝ no changes except storage calls point to MongoDB
-
-	// ─────────────────────────────
-	// 🤖 Gemini — Intent Parser
-	// ─────────────────────────────
 	const parseWithGemini = async (text) => {
 		try {
 			setStatus("Parsing your command…");
@@ -744,6 +730,7 @@ Mira:
 
 	// 📤 Send audio to backend /stt
 	const sendToSTT = async (audioBlob) => {
+		speak("Sure Sir, wait a little.", null)
 		const formData = new FormData();
 		formData.append("audio", audioBlob, "speech.webm");
 
@@ -753,22 +740,19 @@ Mira:
 				body: formData,
 			});
 			const data = await res.json();
-			setTranscript(data.text);
-			console.log(data.text)
 
-			if (data.text) {
-				await beginTask("Parsing with Gemini…");
-				const parsed = await parseWithGemini(transcript);
-				console.log("parsed result", parsed)
+			if (data.status) {
+				console.log(data.text)
+				await beginTask("Data Parsing…");
+				const parsed = await parseWithGemini(data.text);
 
 				if (parsed.wake) {
 					// Only save if Mira actually woke up
-					await pushUser(transcript);
-					await executeCommand(parsed, transcript);
-				} else {
-					finishTask();
-					return;
+					await pushUser(data.text);
+					await executeCommand(parsed, data.text);
 				}
+			} else {
+				speak(data.message, null)
 			}
 		} catch (err) {
 			console.error("STT error:", err);
@@ -795,19 +779,10 @@ Mira:
 				<img src={AI} alt="Mira AI Assistant" className="assistant-img" />
 			</div>
 			<p className="status-text">{status}</p>
-			{!isBusyRef.current && (
-				<div className="transcript-box">
-					{liveTranscript || "…waiting for speech"}
-				</div>
-			)}
 			<div className="actions">
 				<button onClick={recording ? stopRecording : startRecording} className="unlock-btn">
 					{recording ? "⏹ Stop Recording" : "🎤 Start Recording"}
 				</button>
-			</div>
-			<div className="footnote">
-				Mira can offer supportive conversation, but she isn’t a substitute for
-				professional help.
 			</div>
 			<style>{`
         :root { color-scheme: dark; }
