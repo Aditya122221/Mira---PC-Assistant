@@ -273,6 +273,8 @@ app.post("/stt", upload.single("audio"), async (req, res) => {
         fs.existsSync(renamedPath) && fs.unlinkSync(renamedPath);
         fs.existsSync(wavPath) && fs.unlinkSync(wavPath);
 
+        console.log(transcript)
+
         return res.status(200).json({ status: true, text: transcript });
     } catch (err) {
         console.error("❌ Whisper error:", err);
