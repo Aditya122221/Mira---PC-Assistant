@@ -297,47 +297,34 @@ const App = () => {
 		try {
 			setStatus("Parsing your command…");
 
-			const prompt = `
-You are a command parser for the AI assistant Mira.
+			const prompt = `You are a command parser for the AI assistant Mira.
 
-1. First, correct all typos in the transcript.For example, "yutu" → "YouTube", "vcode" → "VSCode", etc.
-2. Then parse the corrected transcript into JSON with exactly these fields:
-			{
-				"wake": true | false,
-				"intent": "string",
-				"target": "string|null",
-				"query": "string|null",
-				"corrected_transcript": "string"
-			}
+1. Correct all typos in the transcript (e.g., "yutu" → "YouTube", "vcode" → "VSCode").
+2. Parse the corrected transcript into strict JSON with these fields only:
+   {
+      "wake": true | false,
+      "intent": "string|null",
+      "target": "string|null",
+      "query": "string|null",
+      "corrected_transcript": "string"
+   }
 
-			Rules:
-			- "wake" must be true if the transcript mentions Mira or variants(even with minor typos) like "mira", "meera", "mirra", "myra", "mirah", "mierra" or affectionate terms like "baby", "babe", "sweetheart".
-- If wake is false, set other fields to null.
-- "intent" is a short verb like "open", "search", "play", "chat", etc.
-- If the user is asking to open desktop applications like VSCode, Notepad, Chrome (the program, not the website), set "intent": "open_software".
-- If it's a website (YouTube, Google, Gmail, etc.), set "intent": "open".
-- "target" is the app, site, or entity.
-- "query" is the rest of the user request.
-- Do not explain.JSON only.
-
-				Examples:
-			Transcript: "hey mira open yutu"
-			{
-				"wake": true,
-				"intent": "open",
-				"target": "youtube",
-				"query": null,
-				"corrected_transcript": "hey mira open YouTube"
-			}
-
-			Transcript: "what is the weather today"
-			{
-				"wake": false,
-				"intent": null,
-				"target": null,
-				"query": null,
-				"corrected_transcript": "what is the weather today"
-			}`;
+- "wake": true if transcript mentions Mira (any variant: "mira", "meera", "mirra", "myra", "mirah", "mierra") or affectionate terms ("baby", "babe", "sweetheart"). Else false.
+- If wake = false → set intent, target, query = null.
+- "intent" MUST be chosen only from this fixed list:
+    • greet → user greets Mira ("hi mira", "hello", "good morning")
+    • introduce → user asks who Mira is or what she can do ("introduce yourself", "who are you")
+    • search → user wants to look up info on Google or YouTube ("search for...", "look up...", "find...")
+    • play → user wants to play songs or videos ("play despacito", "play relaxing music")
+    • open → user wants to open a website or web app ("open YouTube", "open Gmail")
+    • open_software → user wants to open desktop apps (VSCode, Notepad, Chrome program)
+    • mood_boost → user wants to improve mood ("I'm sad", "cheer me up", "help me relax")
+    • chat → casual conversation, jokes, questions not covered above
+    • unknown → if unclear
+- "target": site, app, or entity (lowercase if possible).
+- "query": remaining request content, null if none.
+- Output JSON only, no explanations.
+`;
 
 			const res = await model.generateContent(`${prompt} \nUser: "${text}"`);
 			const raw = res.response.text().trim();
@@ -563,6 +550,7 @@ Mira:
 					}
 					const searchTerm = q || normTarget || "";
 					const link = await googleSearchTopLink(searchTerm);
+					console.log(link)
 					if (link) window.open(link, "_blank");
 					else
 						window.open(
@@ -732,7 +720,6 @@ Mira:
 
 	// 📤 Send audio to backend /stt
 	const sendToSTT = async (audioBlob) => {
-		speak("Sure Sir, wait a little.", null)
 		const formData = new FormData();
 		formData.append("audio", audioBlob, "speech.webm");
 
@@ -746,6 +733,7 @@ Mira:
 			if (data.status) {
 				await beginTask("Data Parsing…");
 				const parsed = await parseWithGemini(data.text);
+				console.log("parsed data", parsed)
 
 				if (parsed.wake) {
 					// Only save if Mira actually woke up

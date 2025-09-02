@@ -215,41 +215,63 @@ app.post("/stt", upload.single("audio"), async (req, res) => {
         fs.renameSync(inputPath, renamedPath);
 
         const wavPath = `${inputPath}.wav`;
-        await new Promise((resolve, reject) => {
-            exec(`ffmpeg -i ${renamedPath} -ar 16000 -ac 1 -c:a pcm_s16le ${wavPath}`, (err) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
 
-        // 👇 Run whisper CLI with only txt output
+        // 🎵 Convert to 16kHz mono WAV
         await new Promise((resolve, reject) => {
             exec(
-                `whisper "${wavPath}" --model medium --output_dir uploads --output_format txt`,
-                (err) => {
-                    if (err) reject(err);
-                    else resolve();
-                }
+                `ffmpeg -i "${renamedPath}" -ar 16000 -ac 1 -c:a pcm_s16le "${wavPath}"`,
+                (err) => (err ? reject(err) : resolve())
             );
         });
 
-        // ✅ Whisper saves inside "uploads/"
-        const baseName = path.basename(wavPath, ".wav");  // gets just filename without extension
-        const transcriptPath = path.join("uploads", `${path.basename(baseName)}.txt`);
+        // 📝 Run Whisper CLI
+        await new Promise((resolve, reject) => {
+            exec(
+                `whisper "${wavPath}" --model medium --output_dir uploads --output_format txt`,
+                (err) => (err ? reject(err) : resolve())
+            );
+        });
 
-        // ✅ Ensure file exists before reading
-        if (!fs.existsSync(transcriptPath)) {
-            fs.unlinkSync(wavPath);
-            fs.unlinkSync(renamedPath);
-            return res.status(200).json({status: false, message: "Sorry Sir, I didn't listen anything"})
+        // 🔎 Whisper output can be either "<filename>.wav.txt" OR "<filename>.txt"
+        const baseNameNoExt = path.basename(wavPath, ".wav"); // e.g. "abc123"
+        const baseNameWithExt = path.basename(wavPath);       // e.g. "abc123.wav"
+
+        const transcriptPath1 = path.join("uploads", `${baseNameWithExt}.txt`).replace(/\\/g, "/"); // abc123.wav.txt
+        const transcriptPath2 = path.join("uploads", `${baseNameNoExt}.txt`).replace(/\\/g, "/");   // abc123.txt
+
+        // 🔄 Retry until transcript file appears
+        async function waitForFile(filePath, retries = 5, delay = 300) {
+            for (let i = 0; i < retries; i++) {
+                if (fs.existsSync(filePath)) return filePath;
+                await new Promise(r => setTimeout(r, delay));
+            }
+            return null;
+        }
+
+        let transcriptPath = await waitForFile(transcriptPath1);
+        if (!transcriptPath) {
+            transcriptPath = await waitForFile(transcriptPath2);
+        }
+
+        // console.log("Final transcript path:", transcriptPath);
+
+        if (!transcriptPath) {
+            return res.status(200).json({ status: false, message: "Sorry Sir, file is not ready" });
         }
 
         const transcript = fs.readFileSync(transcriptPath, "utf-8");
 
-        //Cleanup unnecessary files
-       fs.unlinkSync(renamedPath);
-        fs.unlinkSync(wavPath);
-        fs.unlinkSync(transcriptPath);
+        if (!transcript.trim()) {
+            return res.status(200).json({ status: false, message: "Sorry Sir, I didn't listen anything" });
+        }
+
+        // 🧹 Cleanup temp files safely
+        [renamedPath, wavPath, transcriptPath].forEach(file => {
+            if (fs.existsSync(file)) fs.unlinkSync(file);
+        });
+
+        fs.existsSync(renamedPath) && fs.unlinkSync(renamedPath);
+        fs.existsSync(wavPath) && fs.unlinkSync(wavPath);
 
         return res.status(200).json({ status: true, text: transcript });
     } catch (err) {
@@ -257,8 +279,6 @@ app.post("/stt", upload.single("audio"), async (req, res) => {
         res.status(500).json({ error: "Transcription failed", details: err.message });
     }
 });
-
-
 
 // ✅ Start
 app.listen(5000, () => console.log("✅ Mira backend running on http://localhost:5000"));
